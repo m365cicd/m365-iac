@@ -1,0 +1,40 @@
+# ====== 基本 ======
+*.log
+*.tmp
+*.cache
+*.bak
+*.old
+
+# ====== PowerShell ======
+*.ps1xml
+*.pssc
+*.psk
+
+# ====== 機微情報につながるファイル ======
+# 証明書 / 秘密鍵 / 資格情報
+*.pfx
+*.pem
+*.key
+*.cer
+*.der
+
+# 誤って出力されたら危険なJSON
+secrets.json
+credentials.json
+
+# エクスポートしたM365設定で混入しがちなユーザー固有データ
+user_data/
+private/
+
+# ====== VSCode ======
+.vscode/
+.history/
+
+# ====== OS ======
+.DS_Store
+Thumbs.db
+
+# ====== Terraform (念のため) ======
+*.tfstate
+*.tfstate.*
+.terraform/
