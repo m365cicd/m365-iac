@@ -6,6 +6,13 @@
 
 ---
 
+## Prerequisites（前提条件）
+- **Git** がインストールされていること
+- **PowerShell 7 (pwsh)** がインストールされていること（PS5.1 では動作しません）
+  - 公式入手先: PowerShell の最新リリース（MSI / Store 等）
+
+---
+
 # 1. Environment (Lab Overview)
 - Microsoft 365 Business Premium（1ユーザー）
 - Entra Suite（トライアル）
@@ -27,9 +34,9 @@
 # 3. Environment Setup（PowerShell 実行環境の統一）
 開発PCと CI/CD サーバで **同じ挙動になる PowerShell 実行環境**を提供するため、次のルールを採用します。
 
-## 3.1 PowerShell 7 の利用
-- 開発PC：未導入なら自動インストール（winget）
-- CI/CD：`windows-latest` には pwsh が既に含まれる
+## 3.1 PowerShell 7 の利用（前提）
+- **開発PC：PS7 を前提条件とします（本リポではインストール処理を提供しません）**
+- **CI/CD：`windows-latest` には `pwsh` が既に含まれます**
 
 ## 3.2 Microsoft Graph SDK のセットアップ（共通）
 共通ロジック：`scripts/common/setup-graph-sdk.ps1`
@@ -42,17 +49,17 @@
 
 ## 3.3 開発PC向けラッパー（devpc）
 `scripts/devpc/setup-dev.ps1`
-- PowerShell 7 の自動導入
+- **PS7 前提**（本スクリプトでは PS7 をインストールしません）
 - 共通スクリプトを `-PersistProfile -SetExecutionPolicy` 付きで呼び出し
 
 ## 3.4 CI/CD 用ラッパー（cicd）
 `scripts/cicd/setup-ci.ps1`
 - プロファイル永続化なし（ジョブ完結のため）
-- PSU モジュールは `C:\PSModules` をキャッシュ可能
+- PowerShell モジュールは `C:\PSModules` をキャッシュ可能
 
 ## 3.5 再現手順（別PC）
 ```powershell
-git clone <repo>
+# 事前に PS7 をインストールしておくこと
 cd m365-iac
 pwsh -File ./scripts/devpc/setup-dev.ps1
 ```
