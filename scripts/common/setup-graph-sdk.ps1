@@ -1,35 +1,27 @@
+
 <#
 .SYNOPSIS
-  Microsoft Graph PowerShell SDK の共通セットアップ（OneDrive/KFM 影響回避・Save-Module 方式）
+  Microsoft Graph PowerShell SDK の共通セットアップ（PS7 前提 / Save-Module 方式）
 
 .DESCRIPTION
-  本スクリプトは、開発PCおよび CI/CD（GitHub Actions）で同一挙動となるよう、
-  Microsoft Graph PowerShell SDK を **固定ディレクトリ (C:\PSModules)** に配置し、
-  実行環境（PSModulePath / PSGallery / 実行ポリシー / プロファイル永続化）を整備します。
-
-  重要な設計判断（将来のセッション向けメモ / Public リポ前提）
-  ------------------------------------------------------------------
-  - PowerShell 7 (pwsh) を前提条件とする（PS5.1 は対象外）。
-  - OneDrive/KFM の影響を回避するため、**Install-Module ではなく Save-Module** を採用。
-    * Install-Module -Scope CurrentUser は保存先が "Documents\PowerShell\Modules" に固定され、
-      KFM（OneDrive）配下へリダイレクトされ得るため再現性が損なわれる。
-    * Save-Module -Path C:\PSModules により、保存先を明示的に固定して回避する。
-  - ModulesRoot（既定: C:\PSModules）を **PSModulePath の先頭**に設定。
-  - 開発PCでは、任意で **PSModulePath 永続化** と **実行ポリシー(CurrentUser)=RemoteSigned** を適用。
-  - 管理者権限は不要（CurrentUser スコープで動作）。
-  - Secrets/証明書は扱わない（Public リポのため）。
+  PowerShell 7 を前提に、Microsoft Graph PowerShell SDK（GA と Beta）をユーザースコープへ初期導入します。
+  保存先は OneDrive/KFM の影響を避け、権限不足になりにくい固定ディレクトリ
+  **%LOCALAPPDATA%\PSModules** を採用。PSModulePath（セッション＋User 永続）の先頭に追加し、
+  以降の自動読み込みを成立させます。
+  既定運用は GA、必要時のみ Beta を Import します。
+  本スクリプトは「モジュール配置とパス設定」のみを行い、資格情報は扱いません（Public リポ前提）。
 
 .PARAMETER ModulesRoot
-  Microsoft.Graph を保存するディレクトリ（既定: C:\PSModules）。
+  モジュール保存先。既定: $env:LOCALAPPDATA\PSModules
 
 .PARAMETER GraphRequiredVersion
-  Microsoft.Graph の固定バージョン。未指定時は最新を保存。
+  GA（Microsoft.Graph）の固定バージョン。未指定時は最新。
 
 .PARAMETER PersistProfile
-  $PROFILE に PSModulePath 先頭追加（C:\PSModules）を追記して永続化。
+  $PROFILE に PSModulePath 先頭追記を永続化（開発 PC 向け）。
 
 .PARAMETER SetExecutionPolicy
-  CurrentUser スコープの実行ポリシーを RemoteSigned に設定。
+  実行ポリシー(CurrentUser) を RemoteSigned に設定（開発 PC 向け）。
 
 .EXAMPLE
   pwsh -File ./scripts/common/setup-graph-sdk.ps1 -PersistProfile -SetExecutionPolicy
@@ -38,31 +30,45 @@
   pwsh -File ./scripts/common/setup-graph-sdk.ps1 -GraphRequiredVersion 2.28.0
 
 .NOTES
-  - CI では PersistProfile/SetExecutionPolicy は通常不要。
-  - 本ファイルは Public リポジトリ公開を前提に、可読性とコメントを重視している。
+  - 本リポは PowerShell 7 (pwsh) 前提で運用します。
+  - CI/CD では PersistProfile / SetExecutionPolicy は通常不要です。
+
+  - Refs (設計根拠 / 公式ドキュメント)
+    - about_Modules（既定モジュールロケーション / 自動読み込み）
+      https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_modules?view=powershell-7.5
+    - about_PSModulePath（PSModulePath の意味と構築）
+      https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_psmodulepath?view=powershell-7.5
+    - Graph SDK インストール（GA/Beta 併存、通常は v1.0 を優先）
+      https://learn.microsoft.com/en-us/powershell/microsoftgraph/installation?view=graph-powershell-1.0
 #>
 
-[CmdletBinding()] param(
-  [string]$ModulesRoot = 'C:\PSModules',
+[CmdletBinding()]
+param(
+  [string]$ModulesRoot = (Join-Path $env:LOCALAPPDATA 'PSModules'),
   [string]$GraphRequiredVersion = '',
   [switch]$PersistProfile,
   [switch]$SetExecutionPolicy
 )
 
-Write-Host "== Microsoft Graph SDK セットアップ (Save-Module 方式) ==" -ForegroundColor Cyan
+$ErrorActionPreference = 'Stop'
+
+Write-Host "== Microsoft Graph SDK セットアップ (Save-Module 方式 | PS7) ==" -ForegroundColor Cyan
 Write-Host ("ModulesRoot: {0}" -f $ModulesRoot)
 
+# --- OneDrive/KFM 回避チェック ---------------------------------------------------------
 $oneDriveHints = @()
 if ($env:OneDrive) { $oneDriveHints += $env:OneDrive }
 $odDefault = Join-Path $env:USERPROFILE 'OneDrive'
 if (Test-Path $odDefault) { $oneDriveHints += $odDefault }
+
 foreach ($od in $oneDriveHints | Select-Object -Unique) {
   if ($ModulesRoot -like ("{0}*" -f $od)) {
     Write-Warning "ModulesRoot が OneDrive/KFM 配下に見えます: $ModulesRoot"
-    Write-Warning "例: C:\PSModules のようなローカル固定パスを推奨します。"
+    Write-Warning "例: %LOCALAPPDATA%\PSModules のようなローカル固定パスを推奨します。"
   }
 }
 
+# --- 保存先作成 ---------------------------------------------------------
 if (-not (Test-Path -LiteralPath $ModulesRoot)) {
   New-Item -ItemType Directory -Path $ModulesRoot -Force | Out-Null
   Write-Host " - 作成: $ModulesRoot"
@@ -70,8 +76,9 @@ if (-not (Test-Path -LiteralPath $ModulesRoot)) {
   Write-Host " - 既存: $ModulesRoot"
 }
 
-$paths = $env:PSModulePath -split ';' | Where-Object { $_ }
-if ($paths.Count -eq 0 -or $paths[0] -ne $ModulesRoot) {
+# --- PSModulePath 先頭に追加（セッション & User 永続） -------------------------------
+$sessionPaths = ($env:PSModulePath -split ';') | Where-Object { $_ -and $_.Trim() }
+if ($sessionPaths.Count -eq 0 -or $sessionPaths[0] -ne $ModulesRoot) {
   $env:PSModulePath = ("{0};{1}" -f $ModulesRoot, $env:PSModulePath)
   Write-Host " - PSModulePath(セッション): 先頭を $ModulesRoot に設定"
 } else {
@@ -83,9 +90,9 @@ if ($PersistProfile) {
     if (-not (Test-Path -LiteralPath $PROFILE)) {
       New-Item -ItemType File -Path $PROFILE -Force | Out-Null
     }
-    $guardBegin = '# >>> m365-iac: prepend C\PSModules to PSModulePath >>>'
+    $guardBegin = '# >>> m365-iac: prepend %LOCALAPPDATA%\PSModules to PSModulePath >>>'
     $guardEnd   = '# <<< m365-iac <<<'
-    $line       = '$env:PSModulePath = "C:\PSModules;" + $env:PSModulePath'
+    $line       = '$env:PSModulePath = (Join-Path $env:LOCALAPPDATA ''PSModules'') + '' ; '' + $env:PSModulePath'
 
     $content = Get-Content -LiteralPath $PROFILE -ErrorAction SilentlyContinue
     if ($null -eq ($content | Where-Object { $_ -eq $guardBegin })) {
@@ -103,6 +110,7 @@ if ($PersistProfile) {
   Write-Host " - 永続化なし（PersistProfile 未指定）"
 }
 
+# --- PSGallery / NuGet provider 準備 ---------------------------------------------------
 try {
   $repo = Get-PSRepository -Name 'PSGallery' -ErrorAction Stop
   if ($repo.InstallationPolicy -ne 'Trusted') {
@@ -115,6 +123,16 @@ try {
   Write-Warning ("PSGallery 取得/設定に失敗: {0}" -f $_.Exception.Message)
 }
 
+try {
+  if (-not (Get-PackageProvider -Name NuGet -ListAvailable -ErrorAction SilentlyContinue)) {
+    Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force -Scope CurrentUser -ErrorAction Stop | Out-Null
+    Write-Host " - NuGet プロバイダーを導入（CurrentUser）"
+  }
+} catch {
+  Write-Warning ("NuGet プロバイダー導入に失敗: {0}" -f $_.Exception.Message)
+}
+
+# --- 実行ポリシー（開発 PC のみ） -----------------------------------------------------
 if ($SetExecutionPolicy) {
   try {
     $cur = Get-ExecutionPolicy -Scope CurrentUser -ErrorAction SilentlyContinue
@@ -131,56 +149,35 @@ if ($SetExecutionPolicy) {
   Write-Host " - 実行ポリシー変更なし（SetExecutionPolicy 未指定）"
 }
 
-try {
-  if (-not (Get-PackageProvider -Name NuGet -ListAvailable -ErrorAction SilentlyContinue)) {
-    Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Force -Scope CurrentUser -ErrorAction Stop | Out-Null
-    Write-Host " - NuGet プロバイダーを導入（CurrentUser）"
+# --- Graph SDK（GA + Beta） Save-Module -----------------------------------------------
+$targets = @(
+  @{ Name='Microsoft.Graph';       RequiredVersion=$GraphRequiredVersion },
+  @{ Name='Microsoft.Graph.Beta';  RequiredVersion='' }
+)
+
+foreach ($t in $targets) {
+  $saveParams = @{
+    Name       = $t.Name
+    Repository = 'PSGallery'
+    Path       = $ModulesRoot
+    Force      = $true
   }
-} catch {
-  Write-Warning ("NuGet プロバイダー導入に失敗: {0}" -f $_.Exception.Message)
-}
+  if ($t.RequiredVersion) { $saveParams['RequiredVersion'] = $t.RequiredVersion }
 
-$saveParams = @{
-  Name       = 'Microsoft.Graph'
-  Repository = 'PSGallery'
-  Path       = $ModulesRoot
-  Force      = $true
-}
-if ($GraphRequiredVersion) { $saveParams['RequiredVersion'] = $GraphRequiredVersion }
-
-Write-Host (" - Save-Module Microsoft.Graph -> {0}" -f $ModulesRoot)
-try {
-  Save-Module @saveParams
-} catch {
-  Write-Warning ("Save-Module でエラー: {0}" -f $_.Exception.Message)
-}
-
-$graphRoot = Join-Path $ModulesRoot 'Microsoft.Graph'
-$mods = @()
-if (Test-Path -LiteralPath $graphRoot) {
-  $mods = Get-ChildItem -LiteralPath $graphRoot -Directory -ErrorAction SilentlyContinue |
-          Sort-Object Name -Descending |
-          ForEach-Object { [PSCustomObject]@{ Name='Microsoft.Graph'; Version=$_.Name; ModuleBase=$_.FullName } }
-}
-
-if ($mods.Count -gt 0) {
-  $latest = $mods | Select-Object -First 1
+  Write-Host (" - Save-Module {0} -> {1}" -f $t.Name, $ModulesRoot)
   try {
-    Import-Module Microsoft.Graph -RequiredVersion $latest.Version -ErrorAction Stop | Out-Null
-    Write-Host (" - Import-Module Microsoft.Graph ({0})" -f $latest.Version) -ForegroundColor Green
+    Save-Module @saveParams
   } catch {
-    Write-Warning ("Import-Module に失敗: {0}" -f $_.Exception.Message)
+    Write-Warning ("Save-Module でエラー ({0}): {1}" -f $t.Name, $_.Exception.Message)
   }
-
-  $mods | Format-Table Name,Version,ModuleBase -AutoSize
-  Write-Host "== 完了。必要なら PowerShell を再起動すると永続設定が反映されます ==" -ForegroundColor Green
-} else {
-  Write-Warning ("Microsoft.Graph が {0} に見つかりません。Save-Module のログをご確認ください。" -f $ModulesRoot)
 }
 
-$docPath = [Environment]::GetFolderPath('MyDocuments')
-$graphInDocs = Join-Path $docPath 'PowerShell\Modules\Microsoft.Graph'
-if (Test-Path -LiteralPath $graphInDocs) {
-  Write-Warning ("OneDrive/ドキュメント配下にも Microsoft.Graph が見つかりました: {0}" -f $graphInDocs)
-  Write-Warning "今後の混乱を避けるため、不要なら削除をご検討ください（現在は ModulesRoot を先頭にしています）。"
+# --- 既定（GA）を Import --------------------------------------------------------------
+try {
+  Import-Module Microsoft.Graph -Force -ErrorAction Stop | Out-Null
+  Write-Host " - Import-Module Microsoft.Graph (GA)" -ForegroundColor Green
+} catch {
+  Write-Warning ("Import-Module Microsoft.Graph に失敗: {0}" -f $_.Exception.Message)
 }
+
+Write-Host "== 完了。新しい pwsh セッションで PSModulePath 永続設定が反映されます ==" -ForegroundColor Green
