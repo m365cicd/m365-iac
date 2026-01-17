@@ -11,7 +11,7 @@ Microsoft 365（Intune / Defender / Exchange Online / Purview / Entra ID）を *
 
 ```powershell
 # リポジトリを取得
-git clone https://github.com/<your-account-or-org>/m365-iac.git
+git clone https://github.com/m365cicd/m365-iac.git
 cd m365-iac
 
 # 開発PCセットアップ（既定：GA を利用できる状態で開始）
