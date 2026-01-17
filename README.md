@@ -53,7 +53,7 @@ pwsh -File ./scripts/devpc/setup-dev.ps1
 - **（参考）PowerShell 5.1 からの導入手順（管理者権限不要）**
 
 ```powershell
-# 1. Git のインストール（必要に応じて公式配布/wingetなどで導入）
+# 1. Git のインストール
 winget install --id Git.Git --source winget --scope user
 
 # 2. PowerShell 7 (最新安定版) のインストール
@@ -62,13 +62,12 @@ winget install --id Microsoft.PowerShell --source winget --scope user
 # 3. VS Code のインストール
 winget install --id Microsoft.VisualStudioCode --source winget --scope user
 
-# 4. VS Code 拡張機能のインストール（PowerShell 拡張）
+# 4. VS Code 拡張機能のインストール
+‌code --install-extension MS-CEINTL.vscode-language-pack-ja --force
 code --install-extension ms-vscode.PowerShell --force
-​‌code --install-extension MS-CEINTL.vscode-language-pack-ja --force
+code --install-extension redhat.vscode-yaml --force
 code --install-extension GitHub.vscode-pull-request-github --force
 code --install-extension eamodio.gitlens --force
-code --install-extension redhat.vscode-yaml --force
-
 ```
 
 ---
