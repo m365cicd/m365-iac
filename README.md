@@ -88,6 +88,7 @@ m365-iac/
 │  ├─ validate.yml               # 構成検証
 │  ├─ export.yml                 # 構成エクスポート
 │  └─ apply.yml                  # 本番適用
+├─ _logs/              # 調査・検証用ログ（Git管理外）
 └─ README.md
 ```
 
@@ -187,6 +188,7 @@ jobs:
 
 - **リポジトリにシークレットを含めない**  
   `config.local.ps1`, `*.secret*`, `*.env` などは Git 管理外に  
+  **調査・検証時の一時ログは `_logs/` に出力します（Git 管理外）**
 - **証明書/Thumbprint/アプリ登録などの機微情報は外出し**  
   - 開発PC：CurrentUser 証明書ストアを参照  
   - CI/CD：OIDC フェデレーションや Key Vault を利用  
