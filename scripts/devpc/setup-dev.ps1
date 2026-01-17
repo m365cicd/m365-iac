@@ -1,4 +1,3 @@
-
 <#
 .SYNOPSIS
   開発 PC 向けセットアップ（PS7 前提 / インストール処理は含まない）
@@ -51,7 +50,7 @@ function Assert-PwshExists {
 Write-Host "== 開発PC セットアップ（PS7 前提）==" -ForegroundColor Cyan
 Assert-PwshExists
 
-# 1) 共通セットアップ（保存先作成・PSModulePath 追加・GA/Beta 保存）
+# 1) 共通セットアップ（保存先作成・PSModulePath 追加・Authentication 保存）
 $common = Join-Path $PSScriptRoot '..\common\setup-graph-sdk.ps1' | Resolve-Path
 $args = @(
   '-NoProfile','-File', $common.Path,
@@ -66,15 +65,27 @@ if ($LASTEXITCODE -ne 0) {
   Write-Warning "共通セットアップが非ゼロ終了コードで終了しました。ログを確認してください。"
 }
 
-# 2) 既定 GA、必要時のみ Beta を Import
-$moduleToUse = ( $UseBeta ? 'Microsoft.Graph.Beta' : 'Microsoft.Graph' )
+# 2) ★親プロセスにも PSModulePath を先頭追記（子での変更は親に伝播しない）
+$paths = ($env:PSModulePath -split ';') | Where-Object { $_ -and $_.Trim() }
+if ($paths.Count -eq 0 -or -not ($paths -contains $ModulesRoot)) {
+  $env:PSModulePath = "$ModulesRoot;$env:PSModulePath"
+  Write-Host " - 親PSModulePath: 先頭を $ModulesRoot に設定"
+} else {
+  Write-Host " - 親PSModulePath: 既に $ModulesRoot を含む"
+}
+
+# 3) ★軽量 Import：Authentication のみ（メタは Import しない）
 try {
-  if (-not (Get-Module -Name $moduleToUse)) {
-    Import-Module $moduleToUse -Force
+  Import-Module Microsoft.Graph.Authentication -Force -ErrorAction Stop
+  Write-Host " - Import: Microsoft.Graph.Authentication"
+  if ($UseBeta) {
+    Write-Host " - Beta API は必要時にサブモジュールが自動ロードされます（事前のメタ Import は不要）"
+  } else {
+    Write-Host " - 既定は GA（v1.0）。必要時にサブモジュールが自動ロードされます。"
   }
-  Write-Host " - Using $moduleToUse"
 } catch {
-  Write-Warning ("Import-Module に失敗: {0}" -f $_.Exception.Message)
+  Write-Warning ("Import-Module Microsoft.Graph.Authentication に失敗: {0}" -f $_.Exception.Message)
+  throw
 }
 
 Write-Host "== 完了。新しい pwsh を開くとプロファイル永続化が反映されます ==" -ForegroundColor Green

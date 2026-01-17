@@ -1,4 +1,3 @@
-
 <#
 .SYNOPSIS
   Microsoft Graph PowerShell SDK の共通セットアップ（PS7 前提 / Save-Module 方式）
@@ -38,14 +37,15 @@
       https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_modules?view=powershell-7.5
     - about_PSModulePath（PSModulePath の意味と構築）
       https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_psmodulepath?view=powershell-7.5
-    - Graph SDK インストール（GA/Beta 併存、通常は v1.0 を優先）
-      https://learn.microsoft.com/en-us/powershell/microsoftgraph/installation?view=graph-powershell-1.0
+    - Graph SDK インストール（GA/Beta 併存、v2 ではメタの事前 Import 不要）
+      https://github.com/microsoftgraph/msgraph-sdk-powershell
+      https://github.com/MicrosoftDocs/microsoftgraph-docs-powershell/blob/main/microsoftgraph/docs-conceptual/installation.md
 #>
 
 [CmdletBinding()]
 param(
   [string]$ModulesRoot = (Join-Path $env:LOCALAPPDATA 'PSModules'),
-  [string]$GraphRequiredVersion = '',
+  [string]$GraphRequiredVersion = '',   # v2 では実質 Authentication の RequiredVersion として扱う
   [switch]$PersistProfile,
   [switch]$SetExecutionPolicy
 )
@@ -92,7 +92,7 @@ if ($PersistProfile) {
     }
     $guardBegin = '# >>> m365-iac: prepend %LOCALAPPDATA%\PSModules to PSModulePath >>>'
     $guardEnd   = '# <<< m365-iac <<<'
-    $line       = '$env:PSModulePath = (Join-Path $env:LOCALAPPDATA ''PSModules'') + '' ; '' + $env:PSModulePath'
+    $line       = '$env:PSModulePath = (Join-Path $env:LOCALAPPDATA ''PSModules'') + '';'' + $env:PSModulePath'
 
     $content = Get-Content -LiteralPath $PROFILE -ErrorAction SilentlyContinue
     if ($null -eq ($content | Where-Object { $_ -eq $guardBegin })) {
@@ -149,35 +149,46 @@ if ($SetExecutionPolicy) {
   Write-Host " - 実行ポリシー変更なし（SetExecutionPolicy 未指定）"
 }
 
-# --- Graph SDK（GA + Beta） Save-Module -----------------------------------------------
-$targets = @(
-  @{ Name='Microsoft.Graph';       RequiredVersion=$GraphRequiredVersion },
-  @{ Name='Microsoft.Graph.Beta';  RequiredVersion='' }
-)
+# --- Graph SDK Save-Module（最小：Authentication のみ。既存があればスキップ） --------
+$authName = 'Microsoft.Graph.Authentication'
+$authBase = Join-Path $ModulesRoot $authName
+$rv       = $GraphRequiredVersion   # 未指定なら最新版
 
-foreach ($t in $targets) {
-  $saveParams = @{
-    Name       = $t.Name
-    Repository = 'PSGallery'
-    Path       = $ModulesRoot
-    Force      = $true
+# 既存確認（ModulesRoot 配下にあるかを優先）
+$authExists = Get-Module -ListAvailable $authName |
+  Where-Object { $_.ModuleBase -like "$ModulesRoot*" -and ($rv ? ($_.Version -ge [version]$rv) : $true) }
+
+if ($authExists) {
+  Write-Host " - $authName は既に $ModulesRoot に存在 → Save-Module をスキップ"
+} else {
+  # 中途半端な同バージョン残骸を掃除（AccessDenied 回避）
+  if ($rv) {
+    $target = Join-Path $authBase $rv
+    if (Test-Path $target) {
+      try { Remove-Item $target -Recurse -Force } catch { Write-Warning " - 既存 $target の削除に失敗: $($_.Exception.Message)" }
+    }
   }
-  if ($t.RequiredVersion) { $saveParams['RequiredVersion'] = $t.RequiredVersion }
-
-  Write-Host (" - Save-Module {0} -> {1}" -f $t.Name, $ModulesRoot)
+  # ACL を緩和（現在ユーザーにフル）
   try {
-    Save-Module @saveParams
-  } catch {
-    Write-Warning ("Save-Module でエラー ({0}): {1}" -f $t.Name, $_.Exception.Message)
-  }
+    $me  = [System.Security.Principal.WindowsIdentity]::GetCurrent().Name
+    $acl = Get-Acl $ModulesRoot
+    $rule = New-Object System.Security.AccessControl.FileSystemAccessRule($me,'FullControl','ContainerInherit, ObjectInherit','None','Allow')
+    $acl.SetAccessRule($rule); Set-Acl $ModulesRoot $acl
+  } catch { Write-Warning " - ACL 変更に失敗（続行）: $($_.Exception.Message)" }
+
+  Write-Host " - Save-Module $authName -> $ModulesRoot"
+  $saveParams = @{ Name=$authName; Path=$ModulesRoot; Force=$true; Repository='PSGallery' }
+  if ($rv) { $saveParams['RequiredVersion'] = $rv }
+  try { Save-Module @saveParams } catch { Write-Warning "Save-Module でエラー ($authName): $($_.Exception.Message)"; throw }
 }
 
-# --- 既定（GA）を Import --------------------------------------------------------------
+# --- 確認のため軽量 Import（メタは Import しない） ---------------------------------
 try {
-  Import-Module Microsoft.Graph -Force -ErrorAction Stop | Out-Null
-  Write-Host " - Import-Module Microsoft.Graph (GA)" -ForegroundColor Green
+  Import-Module Microsoft.Graph.Authentication -Force -ErrorAction Stop | Out-Null
+  Write-Host " - Import-Module Microsoft.Graph.Authentication" -ForegroundColor Green
 } catch {
-  Write-Warning ("Import-Module Microsoft.Graph に失敗: {0}" -f $_.Exception.Message)
+  Write-Warning ("Import-Module Microsoft.Graph.Authentication に失敗: {0}" -f $_.Exception.Message)
+  throw
 }
 
 Write-Host "== 完了。新しい pwsh セッションで PSModulePath 永続設定が反映されます ==" -ForegroundColor Green

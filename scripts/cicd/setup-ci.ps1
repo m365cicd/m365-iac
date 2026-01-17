@@ -1,4 +1,3 @@
-
 <#
 .SYNOPSIS
   CI/CD エージェント向けセットアップ（PS7 前提 / 永続化なし）
@@ -45,15 +44,20 @@ $common = Join-Path $PSScriptRoot '..\common\setup-graph-sdk.ps1' | Resolve-Path
   -ModulesRoot $ModulesRoot `
   -GraphRequiredVersion $GraphRequiredVersion
 
-# 2) Import（既定 GA）
-$moduleToUse = ( $UseBeta ? 'Microsoft.Graph.Beta' : 'Microsoft.Graph' )
-try {
-  if (-not (Get-Module -Name $moduleToUse)) {
-    Import-Module $moduleToUse -Force
-  }
-  Write-Host " - Using $moduleToUse"
-} catch {
-  Write-Warning ("Import-Module に失敗: {0}" -f $_.Exception.Message)
+# 2) ★親プロセスにも PSModulePath を先頭追記
+$paths = ($env:PSModulePath -split ';') | Where-Object { $_ -and $_.Trim() }
+if ($paths.Count -eq 0 -or -not ($paths -contains $ModulesRoot)) {
+  $env:PSModulePath = "$ModulesRoot;$env:PSModulePath"
+  Write-Host " - 親PSModulePath: 先頭を $ModulesRoot に設定"
+} else {
+  Write-Host " - 親PSModulePath: 既に $ModulesRoot を含む"
+}
+
+# 3) 軽量 Import（メタは Import しない）
+Import-Module Microsoft.Graph.Authentication -Force
+Write-Host " - Import: Microsoft.Graph.Authentication"
+if ($UseBeta) {
+  Write-Host " - Beta API は必要時にサブモジュールが自動ロードされます（事前のメタ Import は不要）"
 }
 
 Write-Host ("CI SDK bootstrap done. User={0}, LocalAppData={1}" -f `
