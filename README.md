@@ -64,6 +64,12 @@ winget install --id Microsoft.VisualStudioCode --source winget --scope user
 
 # 4. VS Code 拡張機能のインストール（PowerShell 拡張）
 code --install-extension ms-vscode.PowerShell --force
+​‌code --install-extension MS-CEINTL.vscode-language-pack-ja --force
+code --install-extension GitHub.vscode-pull-request-github --force
+code --install-extension eamodio.gitlens --force
+code --install-extension redhat.vscode-yaml --force
+code --install-extension ms-graph.vscode-graph-explorer --force
+
 ```
 
 ---
