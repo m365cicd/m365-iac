@@ -188,7 +188,7 @@ jobs:
 
 - **リポジトリにシークレットを含めない**  
   `config.local.ps1`, `*.secret*`, `*.env` などは Git 管理外に  
-  **調査・検証時の一時ログは `_logs/` に出力します（Git 管理外）**
+- **調査・検証時の一時ログは `_logs/` に出力します（Git 管理外）**
 - **証明書/Thumbprint/アプリ登録などの機微情報は外出し**  
   - 開発PC：CurrentUser 証明書ストアを参照  
   - CI/CD：OIDC フェデレーションや Key Vault を利用  
