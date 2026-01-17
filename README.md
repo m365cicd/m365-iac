@@ -68,7 +68,6 @@ code --install-extension ms-vscode.PowerShell --force
 code --install-extension GitHub.vscode-pull-request-github --force
 code --install-extension eamodio.gitlens --force
 code --install-extension redhat.vscode-yaml --force
-code --install-extension ms-graph.vscode-graph-explorer --force
 
 ```
 
