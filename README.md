@@ -130,10 +130,10 @@ m365-iac/
 - **例**：
 ```powershell
 # 既定（GA を利用できる状態で開始。Beta もインストール済）
-pwsh -File ./scripts/devpc/setup-dev.ps1
+pwsh -File ./scripts/setup/setup-dev.ps1
 
 # GA のバージョンを固定して導入
-pwsh -File ./scripts/devpc/setup-dev.ps1 -GraphRequiredVersion 2.28.0
+pwsh -File ./scripts/setup/setup-dev.ps1 -GraphRequiredVersion 2.28.0
 ```
 
 ---
@@ -179,7 +179,7 @@ jobs:
         run: |
           # 認証は OIDC / Key Vault 等、貴社ポリシーに沿って実装（このリポでは扱いません）
           # Connect-MgGraph -Scopes "User.Read.All","Group.Read.All"
-          pwsh -File ./scripts/common/validate.ps1 -WhatIf
+          pwsh -File ./scripts/setup/validate.ps1 -WhatIf
 ```
 
 > 認証（Connect-MgGraph 等）は **このリポのスクリプトでは扱いません**。パイプライン側で OIDC などの方式を採用してください。

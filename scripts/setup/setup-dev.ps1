@@ -4,7 +4,7 @@
 
 .DESCRIPTION
   既に PowerShell 7 (pwsh) が導入されている前提で、
-  共通セットアップ（scripts/common/setup-graph-sdk.ps1）を呼び出します。
+  共通セットアップ（scripts/setup/setup-graph-sdk.ps1）を呼び出します。
   開発 PC では PSModulePath の **永続化** と、実行ポリシー(CurrentUser)=**RemoteSigned** を適用します。
   既定は GA（Microsoft.Graph）を利用し、最新 API 検証等が必要な場合のみ Beta（Microsoft.Graph.Beta）を Import します。
   保存先は **%LOCALAPPDATA%\PSModules** を使用します（OneDrive/KFM 影響回避・権限不足を避けるため）。
@@ -19,11 +19,11 @@
   セッションで Beta（Microsoft.Graph.Beta）を使用する場合に指定。
 
 .EXAMPLE
-  pwsh -File ./scripts/devpc/setup-dev.ps1
+  pwsh -File ./scripts/setup/setup-dev.ps1
   # 既定 (GA) でセットアップ。PSModulePath 永続化と実行ポリシー設定を行う。
 
 .EXAMPLE
-  pwsh -File ./scripts/devpc/setup-dev.ps1 -UseBeta
+  pwsh -File ./scripts/setup/setup-dev.ps1 -UseBeta
   # 開発セッションで Microsoft.Graph.Beta を Import。
 
 .NOTES
@@ -51,7 +51,7 @@ Write-Host "== 開発PC セットアップ（PS7 前提）==" -ForegroundColor C
 Assert-PwshExists
 
 # 1) 共通セットアップ（保存先作成・PSModulePath 追加・Authentication 保存）
-$common = Join-Path $PSScriptRoot '..\common\setup-graph-sdk.ps1' | Resolve-Path
+$common = Join-Path $PSScriptRoot '..\setup\setup-graph-sdk.ps1' | Resolve-Path
 $args = @(
   '-NoProfile','-File', $common.Path,
   '-ModulesRoot', $ModulesRoot

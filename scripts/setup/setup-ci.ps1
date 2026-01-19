@@ -3,7 +3,7 @@
   CI/CD エージェント向けセットアップ（PS7 前提 / 永続化なし）
 
 .DESCRIPTION
-  共通セットアップ（scripts/common/setup-graph-sdk.ps1）を呼び出し、
+  共通セットアップ（scripts/setup/setup-graph-sdk.ps1）を呼び出し、
   Microsoft Graph SDK（GA + Beta）を **ユーザースコープ**に導入します。
   保存先は **%LOCALAPPDATA%\PSModules** を使用します（実行ユーザーに依存）。
   Self-hosted Agent は実行ユーザーを固定することで、モジュールキャッシュの再現性を確保できます。
@@ -21,11 +21,11 @@
 
 .EXAMPLE
   # 既定 (GA) の例
-  pwsh -File ./scripts/cicd/setup-ci.ps1
+  pwsh -File ./scripts/setup/setup-ci.ps1
 
 .EXAMPLE
   # Beta を使うジョブ例
-  pwsh -File ./scripts/cicd/setup-ci.ps1 -UseBeta
+  pwsh -File ./scripts/setup/setup-ci.ps1 -UseBeta
 
 .NOTES
   本スクリプトは資格情報を扱いません。PSModulePath の永続化や実行ポリシーの変更は行いません。
@@ -39,7 +39,7 @@ param(
 )
 
 # 1) 共通セットアップ（永続化・実行ポリシー変更なし）
-$common = Join-Path $PSScriptRoot '..\common\setup-graph-sdk.ps1' | Resolve-Path
+$common = Join-Path $PSScriptRoot '..\setup\setup-graph-sdk.ps1' | Resolve-Path
 & pwsh -NoProfile -File $common `
   -ModulesRoot $ModulesRoot `
   -GraphRequiredVersion $GraphRequiredVersion

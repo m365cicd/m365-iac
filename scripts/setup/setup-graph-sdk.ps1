@@ -23,10 +23,10 @@
   実行ポリシー(CurrentUser) を RemoteSigned に設定（開発 PC 向け）。
 
 .EXAMPLE
-  pwsh -File ./scripts/common/setup-graph-sdk.ps1 -PersistProfile -SetExecutionPolicy
+  pwsh -File ./scripts/setup/setup-graph-sdk.ps1 -PersistProfile -SetExecutionPolicy
 
 .EXAMPLE
-  pwsh -File ./scripts/common/setup-graph-sdk.ps1 -GraphRequiredVersion 2.28.0
+  pwsh -File ./scripts/csetup/setup-graph-sdk.ps1 -GraphRequiredVersion 2.28.0
 
 .NOTES
   - 本リポは PowerShell 7 (pwsh) 前提で運用します。
