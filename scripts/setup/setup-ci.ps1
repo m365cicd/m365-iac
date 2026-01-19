@@ -39,8 +39,9 @@ param(
 )
 
 # 1) 共通セットアップ（永続化・実行ポリシー変更なし）
-$common = Join-Path $PSScriptRoot '..\setup\setup-graph-sdk.ps1' | Resolve-Path
-& pwsh -NoProfile -File $common `
+$common = Resolve-Path -LiteralPath (Join-Path $PSScriptRoot 'setup-graph-sdk.ps1')
+
+& pwsh -NoProfile -File $common.Path `
   -ModulesRoot $ModulesRoot `
   -GraphRequiredVersion $GraphRequiredVersion
 

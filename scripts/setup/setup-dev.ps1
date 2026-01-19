@@ -51,11 +51,13 @@ Write-Host "== 開発PC セットアップ（PS7 前提）==" -ForegroundColor C
 Assert-PwshExists
 
 # 1) 共通セットアップ（保存先作成・PSModulePath 追加・Authentication 保存）
-$common = Join-Path $PSScriptRoot '..\setup\setup-graph-sdk.ps1' | Resolve-Path
+$common = Resolve-Path -LiteralPath (Join-Path $PSScriptRoot 'setup-graph-sdk.ps1')
+
 $args = @(
   '-NoProfile','-File', $common.Path,
   '-ModulesRoot', $ModulesRoot
 )
+
 if ($GraphRequiredVersion) { $args += @('-GraphRequiredVersion', $GraphRequiredVersion) }
 $args += @('-PersistProfile','-SetExecutionPolicy')  # 開発PCでは永続化＋実行ポリシー設定
 

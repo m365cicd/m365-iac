@@ -26,7 +26,7 @@
   pwsh -File ./scripts/setup/setup-graph-sdk.ps1 -PersistProfile -SetExecutionPolicy
 
 .EXAMPLE
-  pwsh -File ./scripts/csetup/setup-graph-sdk.ps1 -GraphRequiredVersion 2.28.0
+  pwsh -File ./scripts/setup/setup-graph-sdk.ps1 -GraphRequiredVersion 2.28.0
 
 .NOTES
   - 本リポは PowerShell 7 (pwsh) 前提で運用します。
