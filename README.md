@@ -15,7 +15,7 @@ git clone https://github.com/m365cicd/m365-iac.git
 cd m365-iac
 
 # 開発PCセットアップ（既定：GA を利用できる状態で開始）
-pwsh -File ./scripts/devpc/setup-dev.ps1
+pwsh -File ./scripts/setup/setup-dev.ps1
 ```
 
 > ※ Beta（Microsoft.Graph.Beta）も **同時にインストール**されます。  
@@ -76,19 +76,21 @@ code --install-extension eamodio.gitlens --force
 
 ```
 m365-iac/
-├─ iac/                 # Intune / Defender / Exchange / Purview / Identity の IaC 定義
+├─ iac/                  # Intune / Defender / Exchange / Purview / Entra ID の IaC 定義（JSON/YAML）
 ├─ scripts/
-│  ├─ common/
-│  │  └─ setup-graph-sdk.ps1     # Graph SDK 導入の共通ロジック（GA 既定 / Beta 併存保存）
-│  ├─ devpc/
-│  │  └─ setup-dev.ps1           # 開発PC向けラッパー（永続化＋実行ポリシー設定）
-│  └─ cicd/
-│     └─ setup-ci.ps1            # CI/CD向けラッパー（永続化なし）
-├─ .github/workflows/
-│  ├─ validate.yml               # 構成検証
-│  ├─ export.yml                 # 構成エクスポート
-│  └─ apply.yml                  # 本番適用
-├─ _logs/              # 調査・検証用ログ（Git管理外）
+│  ├─ setup/              # 開発PC/CI向けの環境セットアップ（管理者権限なし前提）
+│  │  ├─ setup-graph-sdk.ps1      # Graph SDK導入（GA/Beta 併存など）
+│  │  ├─ setup-dev.ps1            # 開発PC向けセットアップ（ユーザースコープ）
+│  │  └─ setup-ci.ps1             # CI向けセットアップ（GitHub Actions想定）
+│  │
+│  ├─ auth/               # 認証（対話型 / アプリ登録型）
+│  ├─ assessments/        # 状態確認・監査・ドリフト検知
+│  ├─ intune/             # Intune 取得・適用スクリプト
+│  ├─ defender/           # Defender 取得・適用スクリプト
+│  └─ utils/              # JSON I/O / diff / 共通関数など
+│
+├─ .github/workflows/     # CI/CD（validate/export/apply）
+├─ _logs/                 # ログ（Git管理外）
 └─ README.md
 ```
 
@@ -96,7 +98,7 @@ m365-iac/
 
 ## 5. スクリプトの役割（Scripts Overview）
 
-### 5.1 `scripts/common/setup-graph-sdk.ps1`（中核）
+### 5.1 `scripts/setup/setup-graph-sdk.ps1`（中核）
 
 - **何をするか**
   - 保存先 `**%LOCALAPPDATA%\PSModules**` を作成  
@@ -120,7 +122,7 @@ m365-iac/
 
 ---
 
-### 5.2 `scripts/devpc/setup-dev.ps1`（開発 PC ラッパー）
+### 5.2 `scripts/setup/setup-dev.ps1`（開発 PC ラッパー）
 
 - **前提**：PowerShell 7（pwsh）必須  
 - **内容**：共通スクリプトを **`-PersistProfile -SetExecutionPolicy` 付き**で呼び出して初期導入  
@@ -136,14 +138,14 @@ pwsh -File ./scripts/devpc/setup-dev.ps1 -GraphRequiredVersion 2.28.0
 
 ---
 
-### 5.3 `scripts/cicd/setup-ci.ps1`（CI/CD ラッパー）
+### 5.3 `scripts/setup/setup-ci.ps1`（CI/CD ラッパー）
 
 - **内容**：共通スクリプトを **永続化なし**で呼び出して初期導入  
   （既定は GA。**Beta も同時にインストール**されます）
 - **注意**：Self-hosted Agent は **実行ユーザー固定**を推奨（`%LOCALAPPDATA%` の安定化）
 - **例（ジョブ内）**：
 ```powershell
-pwsh -File ./scripts/cicd/setup-ci.ps1
+pwsh -File ./scripts/setup/setup-ci.ps1
 ```
 
 ---
@@ -170,7 +172,7 @@ jobs:
 
       - name: Setup Graph SDK (GA default, Beta also installed)
         shell: pwsh
-        run: pwsh -File ./scripts/cicd/setup-ci.ps1
+        run: pwsh -File ./scripts/setup/setup-ci.ps1
 
       - name: Connect and validate
         shell: pwsh
@@ -201,7 +203,7 @@ jobs:
 - **`Import-Module Microsoft.Graph` に失敗する**  
   - `pwsh` で実行しているか確認（PS7 必須）  
   - `PSModulePath` に `%LOCALAPPDATA%\PSModules` が先頭で入っているか  
-  - `scripts/common/setup-graph-sdk.ps1` を単体で実行し、ログを確認
+  - `scripts/setup/setup-graph-sdk.ps1` を単体で実行し、ログを確認
 - **Beta のコマンドが見つからない**  
   - Beta も **インストール済み** です。セッションで必要なら `Import-Module Microsoft.Graph.Beta` を実行
 - **CI で同じユーザーでもパスが変わる**  
